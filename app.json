@@ -38,7 +38,16 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      //  --- ADICIONADO AQUI ---
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O app precisa de acesso à sua galeria para adicionar fotos de ingredientes.",
+          "cameraPermission": "O app precisa de acesso à sua câmera para tirar fotos de ingredientes."
+        }
       ]
+      //  -------------------------
     ],
     "experiments": {
       "typedRoutes": true,

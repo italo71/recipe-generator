@@ -24,10 +24,11 @@ interface Ingrediente {
 	foto: string | null; // A foto pode ser nula
 }
 
-// --- Estilos ---
+// --- (Estilos originais, sem alteração) ---
 const { width } = Dimensions.get('window');
-const itemGridSize = width / 2 - 25; // Tamanho para 2 colunas com margem
+const itemGridSize = width / 2 - 25;
 
+// ... (itemGridStyles e itemListStyles permanecem os mesmos)
 const itemGridStyles = {
 	container: {
 		backgroundColor: 'white',
@@ -96,7 +97,9 @@ const itemListStyles = {
 		color: 'grey',
 	},
 };
+// --- (Fim dos estilos de item) ---
 
+// --- StyleSheet principal ---
 const styles = StyleSheet.create({
 	safeArea: {
 		flex: 1,
@@ -137,6 +140,7 @@ const styles = StyleSheet.create({
 		fontSize: 30,
 		color: 'white',
 	},
+	// Estilos do Modal de Formulário (Adicionar/Editar)
 	modalOverlay: {
 		flex: 1,
 		justifyContent: 'center',
@@ -202,14 +206,56 @@ const styles = StyleSheet.create({
 		width: '100%',
 		marginTop: 20,
 	},
+	// --- NOVO: Estilos para o Modal de Opções ---
+	optionsModalContent: {
+		width: '80%',
+		backgroundColor: 'white',
+		borderRadius: 10,
+		padding: 20,
+		alignItems: 'center',
+		elevation: 5,
+	},
+	optionsButton: {
+		width: '100%',
+		paddingVertical: 15,
+		borderBottomWidth: 1,
+		borderBottomColor: '#eee',
+		alignItems: 'center',
+	},
+	optionsButtonText: {
+		fontSize: 18,
+		color: '#007AFF', // Cor azul (padrão iOS)
+	},
+	optionsButtonTextDanger: {
+		fontSize: 18,
+		color: 'red',
+	},
+	optionsButtonClose: {
+		width: '100%',
+		paddingVertical: 15,
+		alignItems: 'center',
+		marginTop: 10,
+	},
+	optionsButtonTextClose: {
+		fontSize: 18,
+		fontWeight: 'bold',
+		color: 'grey',
+	},
 });
 
-// O componente da tela agora é exportado como default
 export default function HomeScreen() {
 	// --- Estados Principais ---
-	const [modalVisible, setModalVisible] = useState(false);
-	const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]); // Array tipado
-	const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid'); // Tipo literal
+	const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
+	const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid');
+
+	// --- MODIFICADO: Estados do Modal de Formulário (Adicionar/Editar) ---
+	const [modalVisible, setModalVisible] = useState(false); // Modal do formulário
+	const [modoEdicao, setModoEdicao] = useState(false); // Controla se estamos Adicionando ou Editando
+
+	// --- NOVO: Estados do Modal de Opções (Editar/Remover) ---
+	const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+	const [ingredienteSelecionado, setIngredienteSelecionado] =
+		useState<Ingrediente | null>(null);
 
 	// --- Estados para o formulário do modal ---
 	const [nomeIngrediente, setNomeIngrediente] = useState('');
@@ -217,110 +263,220 @@ export default function HomeScreen() {
 	const [unidade, setUnidade] = useState('');
 	const [fotoUri, setFotoUri] = useState<string | null>(null);
 
-	// --- Funções do Modal ---
+	// --- Funções do Modal de Formulário (Adicionar/Editar) ---
 
-	const handleAbrirModal = () => {
-		setModalVisible(true);
-	};
-
+	// --- MODIFICADO: Limpa o formulário e reseta os modos ---
 	const handleFecharModal = () => {
-		// Limpa o formulário ao fechar
 		setNomeIngrediente('');
 		setQuantidade('');
 		setUnidade('');
 		setFotoUri(null);
 		setModalVisible(false);
+		setModoEdicao(false); // --- NOVO
+		setIngredienteSelecionado(null); // --- NOVO
 	};
 
-	// --- Função para escolher a foto ---
+	// --- MODIFICADO: Abre o modal para ADICIONAR (modoEdicao = false) ---
+	const handleAbrirModalAdicionar = () => {
+		setModoEdicao(false); // Garante que não está em modo de edição
+		setModalVisible(true);
+	};
 
-	const handleEscolherFoto = async () => {
-		// Pede permissão para acessar a galeria
-		const { status } =
-			await ImagePicker.requestMediaLibraryPermissionsAsync();
+	// --- NOVO: Abre o modal para EDITAR (pré-preenche os dados) ---
+	const handleAbrirModalEditar = () => {
+		if (!ingredienteSelecionado) return;
+
+		setModoEdicao(true); // Ativa o modo de edição
+
+		// Preenche o formulário com os dados do ingrediente selecionado
+		setNomeIngrediente(ingredienteSelecionado.nome);
+		setQuantidade(ingredienteSelecionado.qtd);
+		setUnidade(ingredienteSelecionado.unidade);
+		setFotoUri(ingredienteSelecionado.foto);
+
+		setOptionsModalVisible(false); // Fecha o modal de opções
+		setModalVisible(true); // Abre o modal de formulário
+	};
+
+	// --- Funções de Escolha de Foto (Sem alteração) ---
+	const abrirCamera = async () => {
+		/* ... (seu código original) ... */
+		const { status } = await ImagePicker.requestCameraPermissionsAsync();
 		if (status !== 'granted') {
 			Alert.alert(
-				'Desculpe, precisamos de permissão para acessar suas fotos.',
+				'Permissão necessária',
+				'Desculpe, precisamos de permissão para acessar sua câmera.',
 			);
 			return;
 		}
-
-		let result = await ImagePicker.launchImageLibraryAsync({
+		let result = await ImagePicker.launchCameraAsync({
 			mediaTypes: ImagePicker.MediaTypeOptions.Images,
 			allowsEditing: true,
-			aspect: [1, 1], // Força uma foto quadrada
+			aspect: [1, 1],
 			quality: 0.5,
 		});
-
 		if (!result.canceled) {
 			setFotoUri(result.assets[0].uri);
 		}
 	};
+	const abrirGaleria = async () => {
+		/* ... (seu código original) ... */
+		const { status } =
+			await ImagePicker.requestMediaLibraryPermissionsAsync();
+		if (status !== 'granted') {
+			Alert.alert(
+				'Permissão necessária',
+				'Desculpe, precisamos de permissão para acessar suas fotos.',
+			);
+			return;
+		}
+		let result = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ImagePicker.MediaTypeOptions.Images,
+			allowsEditing: true,
+			aspect: [1, 1],
+			quality: 0.5,
+		});
+		if (!result.canceled) {
+			setFotoUri(result.assets[0].uri);
+		}
+	};
+	const handleEscolherFoto = async () => {
+		/* ... (seu código original) ... */
+		Alert.alert(
+			'Adicionar Foto',
+			'Escolha de onde você quer adicionar a foto:',
+			[
+				{ text: 'Tirar Foto...', onPress: abrirCamera },
+				{ text: 'Escolher da Galeria...', onPress: abrirGaleria },
+				{ text: 'Cancelar', style: 'cancel' },
+			],
+			{ cancelable: true },
+		);
+	};
 
-	// --- Função para adicionar o ingrediente ---
+	// --- Funções de CRUD (Create, Read, Update, Delete) ---
 
+	// 1. CREATE (Adicionar)
 	const handleAdicionarIngrediente = () => {
 		if (!nomeIngrediente || !quantidade || !unidade) {
 			Alert.alert('Erro', 'Por favor, preencha todos os campos.');
 			return;
 		}
-
 		const novoIngrediente: Ingrediente = {
-			id: String(Date.now()), // ID único baseado no timestamp
+			id: String(Date.now()),
 			nome: nomeIngrediente,
 			qtd: quantidade,
 			unidade: unidade,
 			foto: fotoUri,
 		};
-
-		// Adiciona o novo ingrediente à lista de ingredientes
 		setIngredientes((ingredientesAtuais) => [
 			...ingredientesAtuais,
 			novoIngrediente,
 		]);
-
-		// Fecha o modal e limpa o formulário
 		handleFecharModal();
 	};
 
-	// --- Funções de Layout ---
+	// 2. UPDATE (Salvar Edição) --- NOVO ---
+	const handleSalvarEdicao = () => {
+		if (!ingredienteSelecionado) return;
 
+		// Atualiza a lista usando 'map'
+		setIngredientes((ingredientesAtuais) =>
+			ingredientesAtuais.map((ing) => {
+				// Se o ID for o mesmo do ingrediente selecionado...
+				if (ing.id === ingredienteSelecionado.id) {
+					// ...retorna o ingrediente com os dados ATUALIZADOS do formulário
+					return {
+						...ing, // Mantém o ID original
+						nome: nomeIngrediente,
+						qtd: quantidade,
+						unidade: unidade,
+						foto: fotoUri,
+					};
+				}
+				// Senão, retorna o ingrediente como ele estava
+				return ing;
+			}),
+		);
+
+		handleFecharModal(); // Fecha e limpa o modal de formulário
+	};
+
+	// 3. DELETE (Remover) --- NOVO ---
+	const handleRemoverIngrediente = () => {
+		if (!ingredienteSelecionado) return;
+
+		// Mostra um alerta de confirmação
+		Alert.alert(
+			'Remover Ingrediente',
+			`Tem certeza que deseja remover "${ingredienteSelecionado.nome}"?`,
+			[
+				{
+					text: 'Cancelar',
+					style: 'cancel',
+					onPress: () => setOptionsModalVisible(false), // Apenas fecha o modal de opções
+				},
+				{
+					text: 'Remover',
+					style: 'destructive',
+					onPress: () => {
+						// Filtra a lista, mantendo todos EXCETO o selecionado
+						setIngredientes((ingredientesAtuais) =>
+							ingredientesAtuais.filter(
+								(ing) => ing.id !== ingredienteSelecionado.id,
+							),
+						);
+						setOptionsModalVisible(false); // Fecha o modal de opções
+						setIngredienteSelecionado(null); // Limpa a seleção
+					},
+				},
+			],
+		);
+	};
+
+	// --- Funções de Layout (Sem alteração) ---
 	const toggleLayout = () => {
 		setLayoutMode(layoutMode === 'grid' ? 'list' : 'grid');
 	};
 
-	// --- Renderização do Item (para FlatList) ---
-
-	// Tipando o parâmetro 'item'
+	// --- MODIFICADO: Renderização do Item (para FlatList) ---
 	const renderIngrediente = ({ item }: { item: Ingrediente }) => {
 		const styleItem =
 			layoutMode === 'grid' ? itemGridStyles : itemListStyles;
 
+		// --- NOVO: Função para abrir o modal de opções ---
+		const onPressItem = () => {
+			setIngredienteSelecionado(item); // Guarda qual item foi clicado
+			setOptionsModalVisible(true); // Abre o modal de opções
+		};
+
 		return (
-			<View style={styleItem.container}>
-				<Image
-					source={
-						item.foto
-							? { uri: item.foto }
-							: require('../../assets/placeholder.jpg') // Caminho relativo ajustado
-					}
-					style={styleItem.image}
-				/>
-				<View style={styleItem.textContainer}>
-					<Text style={styleItem.nome}>{item.nome}</Text>
-					<Text style={styleItem.qtd}>
-						{item.qtd} {item.unidade}
-					</Text>
+			// --- MODIFICADO: Adicionado TouchableOpacity ---
+			<TouchableOpacity onPress={onPressItem}>
+				<View style={styleItem.container}>
+					<Image
+						source={
+							item.foto
+								? { uri: item.foto }
+								: require('../../assets/placeholder.jpg')
+						}
+						style={styleItem.image}
+					/>
+					<View style={styleItem.textContainer}>
+						<Text style={styleItem.nome}>{item.nome}</Text>
+						<Text style={styleItem.qtd}>
+							{item.qtd} {item.unidade}
+						</Text>
+					</View>
 				</View>
-			</View>
+			</TouchableOpacity>
 		);
 	};
 
 	return (
-		// SafeAreaView é importante para não sobrepor a barra de status/notch
 		<SafeAreaView style={styles.safeArea}>
 			<View style={styles.container}>
-				{/* --- Header com Título e Botão de Layout --- */}
+				{/* --- Header (Sem alteração) --- */}
 				<View style={styles.header}>
 					<Text style={styles.titulo}>Meus Ingredientes</Text>
 					<Button
@@ -329,12 +485,12 @@ export default function HomeScreen() {
 					/>
 				</View>
 
-				{/* --- Lista / Grade de Ingredientes --- */}
+				{/* --- Lista / Grade (Sem alteração) --- */}
 				<FlatList
 					data={ingredientes}
 					renderItem={renderIngrediente}
 					keyExtractor={(item) => item.id}
-					key={layoutMode} // Truque para forçar re-renderização ao trocar layout
+					key={layoutMode}
 					numColumns={layoutMode === 'grid' ? 2 : 1}
 					contentContainerStyle={styles.listContent}
 				/>
@@ -342,23 +498,24 @@ export default function HomeScreen() {
 				{/* --- Botão Flutuante de Adicionar (+) --- */}
 				<TouchableOpacity
 					style={styles.fab}
-					onPress={handleAbrirModal}
+					onPress={handleAbrirModalAdicionar} // --- MODIFICADO ---
 				>
 					<Text style={styles.fabText}>+</Text>
 				</TouchableOpacity>
 
-				{/* --- Pop-up (Modal) para Adicionar Ingrediente --- */}
+				{/* --- MODIFICADO: Modal (Formulário) para Adicionar/Editar --- */}
 				<Modal
 					animationType="slide"
 					transparent={true}
 					visible={modalVisible}
 					onRequestClose={handleFecharModal}
 				>
-					{/* Usamos uma View com 'flex: 1' e fundo semi-transparente para o overlay */}
 					<View style={styles.modalOverlay}>
 						<View style={styles.modalContent}>
 							<Text style={styles.modalTitle}>
-								Adicionar Ingrediente
+								{modoEdicao
+									? 'Editar Ingrediente'
+									: 'Adicionar Ingrediente'}
 							</Text>
 
 							<TouchableOpacity
@@ -407,10 +564,63 @@ export default function HomeScreen() {
 									color="red"
 								/>
 								<Button
-									title="Adicionar"
-									onPress={handleAdicionarIngrediente}
+									// --- MODIFICADO: Título e Ação dinâmicos ---
+									title={modoEdicao ? 'Salvar' : 'Adicionar'}
+									onPress={
+										modoEdicao
+											? handleSalvarEdicao
+											: handleAdicionarIngrediente
+									}
 								/>
 							</View>
+						</View>
+					</View>
+				</Modal>
+
+				{/* --- NOVO: Modal de Opções (Editar/Remover) --- */}
+				<Modal
+					animationType="fade" // 'fade' é bom para popups rápidos
+					transparent={true}
+					visible={optionsModalVisible}
+					onRequestClose={() => setOptionsModalVisible(false)}
+				>
+					{/* Overlay semi-transparente */}
+					<View style={styles.modalOverlay}>
+						<View style={styles.optionsModalContent}>
+							{/* Título (opcional, mas bom) */}
+							<Text style={styles.modalTitle}>
+								{ingredienteSelecionado?.nome}
+							</Text>
+
+							{/* Botão Editar */}
+							<TouchableOpacity
+								style={styles.optionsButton}
+								onPress={handleAbrirModalEditar}
+							>
+								<Text style={styles.optionsButtonText}>
+									Editar
+								</Text>
+							</TouchableOpacity>
+
+							{/* Botão Remover */}
+							<TouchableOpacity
+								style={styles.optionsButton}
+								onPress={handleRemoverIngrediente}
+							>
+								<Text style={styles.optionsButtonTextDanger}>
+									Remover
+								</Text>
+							</TouchableOpacity>
+
+							{/* Botão Fechar */}
+							<TouchableOpacity
+								style={styles.optionsButtonClose}
+								onPress={() => setOptionsModalVisible(false)}
+							>
+								<Text style={styles.optionsButtonTextClose}>
+									Fechar
+								</Text>
+							</TouchableOpacity>
 						</View>
 					</View>
 				</Modal>
@@ -418,77 +628,3 @@ export default function HomeScreen() {
 		</SafeAreaView>
 	);
 }
-
-// --- ESTA É A CORREÇÃO ---
-// Definimos os estilos dos itens FORA do StyleSheet.create.
-// Isso nos permite agrupá-los (container, image, etc.)
-// Usamos "as ViewStyle" para ajudar o TypeScript.
-
-/* const itemGridStyles = {
-  container: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    marginHorizontal: 5,
-    width: itemGridSize,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-  } as ViewStyle,
-  image: {
-    width: itemGridSize - 20,
-    height: itemGridSize - 20,
-    borderRadius: 8,
-    marginBottom: 5,
-    backgroundColor: '#eee', // Fundo para a imagem
-  } as ImageStyle,
-  textContainer: {
-    alignItems: 'center',
-  } as ViewStyle,
-  nome: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  } as TextStyle,
-  qtd: {
-    fontSize: 14,
-    color: 'grey',
-  } as TextStyle,
-}; */
-
-/* const itemListStyles = {
-	container: {
-		backgroundColor: 'white',
-		borderRadius: 8,
-		padding: 10,
-		marginBottom: 10,
-		flexDirection: 'row',
-		alignItems: 'center',
-		elevation: 2,
-		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 1 },
-		shadowOpacity: 0.2,
-		shadowRadius: 1.41,
-	} as ViewStyle,
-	image: {
-		width: 60,
-		height: 60,
-		borderRadius: 8,
-		marginRight: 10,
-		backgroundColor: '#eee', // Fundo para a imagem
-	} as ImageStyle,
-	textContainer: {
-		flex: 1,
-	} as ViewStyle,
-	nome: {
-		fontSize: 18,
-		fontWeight: 'bold',
-	} as TextStyle,
-	qtd: {
-		fontSize: 16,
-		color: 'grey',
-	} as TextStyle,
- };*/
