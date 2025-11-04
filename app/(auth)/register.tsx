@@ -1,5 +1,7 @@
+import { Link, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   SafeAreaView,
   StatusBar,
@@ -8,9 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
-import { Link, router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RegisterScreen() {
@@ -107,7 +107,7 @@ export default function RegisterScreen() {
           <Link href="/(auth)/login" asChild>
             <TouchableOpacity>
               <Text style={styles.buttonSecondaryText}>
-                Já tem uma conta? Faça login
+                Já tem uma conta? Voltar
               </Text>
             </TouchableOpacity>
           </Link>
