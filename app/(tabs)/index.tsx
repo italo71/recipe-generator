@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+	ActivityIndicator,
 	Alert,
 	Button,
 	Dimensions,
@@ -14,6 +15,13 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native';
+import {
+	createIngredient,
+	deleteIngredient,
+	listIngredients,
+	updateIngredient,
+	type Ingredient,
+} from '../../services/ingredient_service';
 
 // 1. Definindo o tipo do nosso Ingrediente (TypeScript)
 interface Ingrediente {
@@ -29,7 +37,7 @@ const { width } = Dimensions.get('window');
 const itemGridSize = width / 2 - 25;
 
 // ... (itemGridStyles e itemListStyles permanecem os mesmos)
-const itemGridStyles = {
+const itemGridStyles = StyleSheet.create({
 	container: {
 		backgroundColor: 'white',
 		borderRadius: 8,
@@ -62,9 +70,9 @@ const itemGridStyles = {
 		fontSize: 14,
 		color: 'grey',
 	},
-};
+});
 
-const itemListStyles = {
+const itemListStyles = StyleSheet.create({
 	container: {
 		backgroundColor: 'white',
 		borderRadius: 8,
@@ -96,7 +104,7 @@ const itemListStyles = {
 		fontSize: 16,
 		color: 'grey',
 	},
-};
+});
 // --- (Fim dos estilos de item) ---
 
 // --- StyleSheet principal ---
@@ -247,6 +255,8 @@ export default function HomeScreen() {
 	// --- Estados Principais ---
 	const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
 	const [layoutMode, setLayoutMode] = useState<'grid' | 'list'>('grid');
+	const [isLoading, setIsLoading] = useState(false);
+	const [isRefreshing, setIsRefreshing] = useState(false);
 
 	// --- MODIFICADO: Estados do Modal de Formulário (Adicionar/Editar) ---
 	const [modalVisible, setModalVisible] = useState(false); // Modal do formulário
@@ -262,6 +272,42 @@ export default function HomeScreen() {
 	const [quantidade, setQuantidade] = useState('');
 	const [unidade, setUnidade] = useState('');
 	const [fotoUri, setFotoUri] = useState<string | null>(null);
+
+	// --- Carregar ingredientes ao montar o componente ---
+	useEffect(() => {
+		carregarIngredientes();
+	}, []);
+
+	// Função para carregar ingredientes do backend
+	const carregarIngredientes = async () => {
+		try {
+			setIsLoading(true);
+			const data = await listIngredients();
+			
+			// Converter do formato da API para o formato local
+			const ingredientesFormatados: Ingrediente[] = data.map((item: Ingredient) => ({
+				id: item.id,
+				nome: item.name,
+				qtd: item.quantity,
+				unidade: item.unit,
+				foto: item.image_url,
+			}));
+			
+			setIngredientes(ingredientesFormatados);
+		} catch (error) {
+			Alert.alert('Erro', 'Não foi possível carregar os ingredientes.');
+			console.error('Erro ao carregar ingredientes:', error);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	// Função para recarregar (pull to refresh)
+	const handleRefresh = async () => {
+		setIsRefreshing(true);
+		await carregarIngredientes();
+		setIsRefreshing(false);
+	};
 
 	// --- Funções do Modal de Formulário (Adicionar/Editar) ---
 
@@ -357,49 +403,92 @@ export default function HomeScreen() {
 	// --- Funções de CRUD (Create, Read, Update, Delete) ---
 
 	// 1. CREATE (Adicionar)
-	const handleAdicionarIngrediente = () => {
+	const handleAdicionarIngrediente = async () => {
 		if (!nomeIngrediente || !quantidade || !unidade) {
 			Alert.alert('Erro', 'Por favor, preencha todos os campos.');
 			return;
 		}
-		const novoIngrediente: Ingrediente = {
-			id: String(Date.now()),
-			nome: nomeIngrediente,
-			qtd: quantidade,
-			unidade: unidade,
-			foto: fotoUri,
-		};
-		setIngredientes((ingredientesAtuais) => [
-			...ingredientesAtuais,
-			novoIngrediente,
-		]);
-		handleFecharModal();
+
+		try {
+			setIsLoading(true);
+			
+			const novoIngrediente = await createIngredient({
+				name: nomeIngrediente,
+				quantity: quantidade,
+				unit: unidade,
+				image_url: fotoUri,
+			});
+
+			// Adiciona à lista local
+			const ingredienteFormatado: Ingrediente = {
+				id: novoIngrediente.id,
+				nome: novoIngrediente.name,
+				qtd: novoIngrediente.quantity,
+				unidade: novoIngrediente.unit,
+				foto: novoIngrediente.image_url,
+			};
+
+			setIngredientes((ingredientesAtuais) => [
+				...ingredientesAtuais,
+				ingredienteFormatado,
+			]);
+
+			handleFecharModal();
+			Alert.alert('Sucesso', 'Ingrediente adicionado com sucesso!');
+		} catch (error) {
+			Alert.alert('Erro', 'Não foi possível adicionar o ingrediente.');
+			console.error('Erro ao adicionar ingrediente:', error);
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	// 2. UPDATE (Salvar Edição) --- NOVO ---
-	const handleSalvarEdicao = () => {
+	const handleSalvarEdicao = async () => {
 		if (!ingredienteSelecionado) return;
 
-		// Atualiza a lista usando 'map'
-		setIngredientes((ingredientesAtuais) =>
-			ingredientesAtuais.map((ing) => {
-				// Se o ID for o mesmo do ingrediente selecionado...
-				if (ing.id === ingredienteSelecionado.id) {
-					// ...retorna o ingrediente com os dados ATUALIZADOS do formulário
-					return {
-						...ing, // Mantém o ID original
-						nome: nomeIngrediente,
-						qtd: quantidade,
-						unidade: unidade,
-						foto: fotoUri,
-					};
-				}
-				// Senão, retorna o ingrediente como ele estava
-				return ing;
-			}),
-		);
+		if (!nomeIngrediente || !quantidade || !unidade) {
+			Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+			return;
+		}
 
-		handleFecharModal(); // Fecha e limpa o modal de formulário
+		try {
+			setIsLoading(true);
+			
+			const ingredienteAtualizado = await updateIngredient(
+				ingredienteSelecionado.id,
+				{
+					name: nomeIngrediente,
+					quantity: quantidade,
+					unit: unidade,
+					image_url: fotoUri,
+				}
+			);
+
+			// Atualiza a lista local usando 'map'
+			setIngredientes((ingredientesAtuais) =>
+				ingredientesAtuais.map((ing) => {
+					if (ing.id === ingredienteSelecionado.id) {
+						return {
+							id: ingredienteAtualizado.id,
+							nome: ingredienteAtualizado.name,
+							qtd: ingredienteAtualizado.quantity,
+							unidade: ingredienteAtualizado.unit,
+							foto: ingredienteAtualizado.image_url,
+						};
+					}
+					return ing;
+				}),
+			);
+
+			handleFecharModal();
+			Alert.alert('Sucesso', 'Ingrediente atualizado com sucesso!');
+		} catch (error) {
+			Alert.alert('Erro', 'Não foi possível atualizar o ingrediente.');
+			console.error('Erro ao atualizar ingrediente:', error);
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	// 3. DELETE (Remover) --- NOVO ---
@@ -414,20 +503,33 @@ export default function HomeScreen() {
 				{
 					text: 'Cancelar',
 					style: 'cancel',
-					onPress: () => setOptionsModalVisible(false), // Apenas fecha o modal de opções
+					onPress: () => setOptionsModalVisible(false),
 				},
 				{
 					text: 'Remover',
 					style: 'destructive',
-					onPress: () => {
-						// Filtra a lista, mantendo todos EXCETO o selecionado
-						setIngredientes((ingredientesAtuais) =>
-							ingredientesAtuais.filter(
-								(ing) => ing.id !== ingredienteSelecionado.id,
-							),
-						);
-						setOptionsModalVisible(false); // Fecha o modal de opções
-						setIngredienteSelecionado(null); // Limpa a seleção
+					onPress: async () => {
+						try {
+							setIsLoading(true);
+							
+							await deleteIngredient(ingredienteSelecionado.id);
+
+							// Remove da lista local
+							setIngredientes((ingredientesAtuais) =>
+								ingredientesAtuais.filter(
+									(ing) => ing.id !== ingredienteSelecionado.id,
+								),
+							);
+
+							setOptionsModalVisible(false);
+							setIngredienteSelecionado(null);
+							Alert.alert('Sucesso', 'Ingrediente removido com sucesso!');
+						} catch (error) {
+							Alert.alert('Erro', 'Não foi possível remover o ingrediente.');
+							console.error('Erro ao remover ingrediente:', error);
+						} finally {
+							setIsLoading(false);
+						}
 					},
 				},
 			],
@@ -486,14 +588,31 @@ export default function HomeScreen() {
 				</View>
 
 				{/* --- Lista / Grade (Sem alteração) --- */}
-				<FlatList
-					data={ingredientes}
-					renderItem={renderIngrediente}
-					keyExtractor={(item) => item.id}
-					key={layoutMode}
-					numColumns={layoutMode === 'grid' ? 2 : 1}
-					contentContainerStyle={styles.listContent}
-				/>
+				{isLoading && ingredientes.length === 0 ? (
+					<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+						<ActivityIndicator size="large" color="green" />
+						<Text style={{ marginTop: 10, color: '#666' }}>Carregando ingredientes...</Text>
+					</View>
+				) : (
+					<FlatList
+						data={ingredientes}
+						renderItem={renderIngrediente}
+						keyExtractor={(item) => item.id}
+						key={layoutMode}
+						numColumns={layoutMode === 'grid' ? 2 : 1}
+						contentContainerStyle={styles.listContent}
+						refreshing={isRefreshing}
+						onRefresh={handleRefresh}
+						ListEmptyComponent={
+							<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 }}>
+								<Text style={{ fontSize: 18, color: '#666' }}>Nenhum ingrediente cadastrado</Text>
+								<Text style={{ fontSize: 14, color: '#999', marginTop: 10 }}>
+									Toque no botão + para adicionar
+								</Text>
+							</View>
+						}
+					/>
+				)}
 
 				{/* --- Botão Flutuante de Adicionar (+) --- */}
 				<TouchableOpacity
@@ -562,15 +681,17 @@ export default function HomeScreen() {
 									title="Cancelar"
 									onPress={handleFecharModal}
 									color="red"
+									disabled={isLoading}
 								/>
 								<Button
 									// --- MODIFICADO: Título e Ação dinâmicos ---
-									title={modoEdicao ? 'Salvar' : 'Adicionar'}
+									title={isLoading ? 'Salvando...' : (modoEdicao ? 'Salvar' : 'Adicionar')}
 									onPress={
 										modoEdicao
 											? handleSalvarEdicao
 											: handleAdicionarIngrediente
 									}
+									disabled={isLoading}
 								/>
 							</View>
 						</View>
