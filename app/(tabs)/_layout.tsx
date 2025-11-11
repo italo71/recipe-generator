@@ -3,33 +3,64 @@ import React from 'react';
 import { Text } from 'react-native';
 
 export default function TabsLayout() {
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false, 
-      }}>
-      
-      {}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Início',
-          tabBarIcon: ({ color, focused }) => (
-            <Text style={{ color: color, fontSize: focused ? 24 : 20 }}>🏠</Text>
-          ),
-        }}
-      />
+	return (
+		<Tabs
+			screenOptions={{
+				headerShown: false,
+			}}
+		>
+			{}
+			<Tabs.Screen
+				name="index"
+				options={{
+					title: 'Início',
+					tabBarIcon: ({ color, focused }) => (
+						<Text
+							style={{
+								color: color,
+								fontSize: focused ? 24 : 20,
+							}}
+						>
+							🏠
+						</Text>
+					),
+				}}
+			/>
 
-      {}
-      <Tabs.Screen
-        name="profile" 
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color, focused }) => (
-            <Text style={{ color: color, fontSize: focused ? 24 : 20 }}>👤</Text>
-          ),
-        }}
-      />
-    </Tabs>
-  );
+			{}
+			<Tabs.Screen
+				name="profile"
+				options={{
+					title: 'Perfil',
+					tabBarIcon: ({ color, focused }) => (
+						<Text
+							style={{
+								color: color,
+								fontSize: focused ? 24 : 20,
+							}}
+						>
+							👤
+						</Text>
+					),
+				}}
+			/>
+			{}
+			<Tabs.Screen
+				name="generator"
+				options={{
+					title: 'Gerar',
+					tabBarIcon: ({ color, focused }) => (
+						<Text
+							style={{
+								color: color,
+								fontSize: focused ? 24 : 20,
+							}}
+						>
+							👤
+						</Text>
+					),
+				}}
+			/>
+		</Tabs>
+	);
 }
