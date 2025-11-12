@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
 	ActivityIndicator,
 	Alert,
-	Button, // Importado
+	Button,
 	Dimensions,
 	FlatList,
 	Image,
@@ -13,7 +13,6 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native';
-// (Imports de serviço comentados para o mock)
 
 // 1. Tipo Ingrediente (Sem alterações)
 interface Ingrediente {
@@ -24,7 +23,28 @@ interface Ingrediente {
 	foto: string | null;
 }
 
-// 2. Mock (Sem alterações)
+// --- NOVO: Tipos para a Resposta da Receita ---
+interface IngredienteReceita {
+	nome: string;
+	quantidade: string;
+}
+
+interface PassoReceita {
+	numero: number;
+	descricao: string;
+}
+
+interface Receita {
+	nome: string;
+	listaIngredientes: IngredienteReceita[];
+	passos: PassoReceita[];
+}
+
+interface ApiResponseReceitas {
+	listaReceitas: Receita[];
+}
+
+// 2. Mock Ingredientes (Sem alterações)
 const MOCK_INGREDIENTES: Ingrediente[] = [
 	{
 		id: '1',
@@ -40,42 +60,75 @@ const MOCK_INGREDIENTES: Ingrediente[] = [
 		unidade: 'un',
 		foto: 'https://img.freepik.com/fotos-gratis/cebola-isolada-no-fundo-branco_1205-1100.jpg',
 	},
-	{
-		id: '3',
-		nome: 'Alho',
-		qtd: '3',
-		unidade: 'dentes',
-		foto: 'https://img.freepik.com/fotos-gratis/alho-isolado-em-um-fundo-branco_1302-21151.jpg',
-	},
-	{
-		id: '4',
-		nome: 'Arroz',
-		qtd: '100',
-		unidade: 'g',
-		foto: null,
-	},
-	{
-		id: '5',
-		nome: 'Peito de Frango',
-		qtd: '200',
-		unidade: 'g',
-		foto: 'https://img.freepik.com/fotos-gratis/file-de-peito-de-frango-cru-isolado-no-fundo-branco_1434-70.jpg',
-	},
-	{
-		id: '6',
-		nome: 'Batata',
-		qtd: '2',
-		unidade: 'un',
-		foto: 'https://img.freepik.com/fotos-gratis/batata-crua-isolada-no-branco_1205-1136.jpg',
-	},
+	// ... (outros ingredientes)
 ];
+
+// --- NOVO: Função Mock para simular a API de gerar receita ---
+/**
+ * Simula o envio dos ingredientes para a API e o recebimento de uma receita.
+ */
+const simularApiGerarReceita = async (
+	ingredientesEnviados: any,
+): Promise<ApiResponseReceitas> => {
+	console.log(
+		'--- ENVIANDO PARA API (MOCK) ---',
+		JSON.stringify(ingredientesEnviados, null, 2),
+	);
+
+	// Simula um delay de rede de 2 segundos
+	await new Promise((resolve) => setTimeout(resolve, 2000));
+
+	console.log('--- RESPOSTA DA API (MOCK) RECEBIDA ---');
+
+	// Simula uma resposta bem-sucedida
+	// (Você pode trocar essa receita por outra para testar)
+	const mockResposta: ApiResponseReceitas = {
+		listaReceitas: [
+			{
+				nome: 'Molho de Tomate Caseiro',
+				listaIngredientes: [
+					{ nome: 'Tomate', quantidade: '2 unidades' },
+					{ nome: 'Cebola', quantidade: '1 unidade' },
+					{ nome: 'Alho', quantidade: '3 dentes' },
+					{ nome: 'Azeite', quantidade: '2 colheres' },
+					{ nome: 'Sal', quantidade: 'a gosto' },
+				],
+				passos: [
+					{
+						numero: 1,
+						descricao: 'Pique o tomate, a cebola e o alho.',
+					},
+					{
+						numero: 2,
+						descricao:
+							'Refogue a cebola e o alho no azeite até dourar.',
+					},
+					{
+						numero: 3,
+						descricao:
+							'Adicione o tomate picado e cozinhe em fogo baixo.',
+					},
+					{
+						numero: 4,
+						descricao:
+							'Tempere com sal e deixe apurar por 15 minutos.',
+					},
+				],
+			},
+		],
+	};
+
+	// Para testar um erro, descomente a linha abaixo:
+	// throw new Error('Erro simulado de conexão com o banco de dados');
+
+	return mockResposta;
+};
 
 // 3. Estilos (itemGridStyles sem alterações)
 const { width } = Dimensions.get('window');
 const itemGridSize = width / 2 - 25;
 
 const itemGridStyles = StyleSheet.create({
-	/* ... (mesmos estilos de antes) ... */
 	container: {
 		backgroundColor: 'white',
 		borderRadius: 8,
@@ -115,7 +168,7 @@ const itemGridStyles = StyleSheet.create({
 	},
 });
 
-// --- ESTILOS PRINCIPAIS (COM MUDANÇAS) ---
+// --- ESTILOS PRINCIPAIS ---
 const styles = StyleSheet.create({
 	safeArea: {
 		flex: 1,
@@ -126,24 +179,22 @@ const styles = StyleSheet.create({
 		padding: 10,
 		marginTop: 30,
 	},
-	// --- MODIFICADO: Header agora é 'row' ---
 	header: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
 		paddingHorizontal: 10,
-		marginBottom: 5, // Reduzido
+		marginBottom: 5,
 	},
 	titulo: {
 		fontSize: 24,
 		fontWeight: 'bold',
 	},
-	// --- MODIFICADO: Subtítulo saiu do header ---
 	subtitulo: {
 		fontSize: 16,
 		color: '#666',
 		paddingHorizontal: 10,
-		marginBottom: 15, // Margem que estava no header
+		marginBottom: 15,
 	},
 	listContent: {
 		paddingHorizontal: 10,
@@ -173,6 +224,7 @@ const styles = StyleSheet.create({
 		borderTopWidth: 1,
 		borderTopColor: '#eee',
 		backgroundColor: '#f5f5f5',
+		alignItems: 'center', // --- MODIFICADO: Para centralizar o ActivityIndicator
 	},
 });
 
@@ -180,7 +232,8 @@ const styles = StyleSheet.create({
 export default function GeradorReceitaScreen() {
 	const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
 	const [selecionados, setSelecionados] = useState<string[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
+	const [isLoading, setIsLoading] = useState(false); // Loading da lista inicial
+	const [isGerando, setIsGerando] = useState(false); // --- NOVO: Loading do botão Gerar
 
 	useEffect(() => {
 		carregarIngredientes();
@@ -208,25 +261,42 @@ export default function GeradorReceitaScreen() {
 		}
 	};
 
-	// --- NOVA FUNÇÃO ---
+	// handleToggleSelecionarTudo (Sem alterações)
 	const handleToggleSelecionarTudo = () => {
-		// Se a lista de ingredientes estiver vazia, não faz nada
 		if (ingredientes.length === 0) return;
 
-		// Verifica se o número de selecionados é IGUAL ao total de ingredientes
 		if (selecionados.length === ingredientes.length) {
-			// Se sim, todos estão marcados -> Desmarca todos (seta para array vazio)
 			setSelecionados([]);
 		} else {
-			// Se não, (zero ou alguns marcados) -> Marca todos
-			// Pega o ID de cada ingrediente e joga no array de selecionados
 			const todosOsIds = ingredientes.map((ing) => ing.id);
 			setSelecionados(todosOsIds);
 		}
 	};
 
-	// handleGerarJson (Sem alterações)
-	const handleGerarJson = () => {
+	// --- NOVO: Função para formatar e exibir a receita no Alert ---
+	const mostrarReceita = (receita: Receita) => {
+		// Formata a string para o Alert
+		let mensagem = 'Ingredientes:\n';
+		receita.listaIngredientes.forEach((ing) => {
+			mensagem += `• ${ing.nome} (${ing.quantidade})\n`;
+		});
+
+		mensagem += '\nModo de Preparo:\n';
+		receita.passos.forEach((passo) => {
+			mensagem += `${passo.numero}. ${passo.descricao}\n`;
+		});
+
+		Alert.alert(
+			receita.nome, // Título do Alert
+			mensagem, // Corpo do Alert
+			[{ text: 'OK' }],
+			{ cancelable: true },
+		);
+	};
+
+	// --- MODIFICADO: Antiga handleGerarJson agora é handleGerarReceita e é async ---
+	const handleGerarReceita = async () => {
+		// 1. Prepara o JSON de *envio*
 		const ingredientesFiltrados = ingredientes.filter((ing) =>
 			selecionados.includes(ing.id),
 		);
@@ -234,19 +304,41 @@ export default function GeradorReceitaScreen() {
 			Ingrediente: item.nome,
 			qtd: `${item.qtd} ${item.unidade}`,
 		}));
-		const jsonOutput = {
+
+		const jsonRequest = {
 			listaIngredientes: listaParaJson,
 		};
-		const jsonString = JSON.stringify(jsonOutput, null, 2);
-		Alert.alert('JSON Gerado!', jsonString, [{ text: 'OK' }], {
-			cancelable: true,
-		});
-		console.log(jsonString);
+
+		// 2. Inicia o loading e chama a API
+		try {
+			setIsGerando(true); // Ativa o loading do botão
+			const resposta = await simularApiGerarReceita(jsonRequest);
+
+			// 3. Processa a resposta
+			if (resposta.listaReceitas && resposta.listaReceitas.length > 0) {
+				// Pega a primeira receita da lista
+				const receitaRecebida = resposta.listaReceitas[0];
+				mostrarReceita(receitaRecebida);
+			} else {
+				Alert.alert(
+					'Nenhuma receita',
+					'Não foi possível encontrar uma receita com esses ingredientes.',
+				);
+			}
+		} catch (error) {
+			console.error(error);
+			Alert.alert(
+				'Erro',
+				'Ocorreu um problema ao se comunicar com o servidor.',
+			);
+		} finally {
+			// 4. Para o loading
+			setIsGerando(false);
+		}
 	};
 
 	// renderIngredienteGrid (Sem alterações)
 	const renderIngredienteGrid = ({ item }: { item: Ingrediente }) => {
-		/* ... (mesmo código de render) ... */
 		const isSelecionado = selecionados.includes(item.id);
 		return (
 			<TouchableOpacity
@@ -263,7 +355,7 @@ export default function GeradorReceitaScreen() {
 						source={
 							item.foto
 								? { uri: item.foto }
-								: require('../../assets/placeholder.jpg')
+								: require('../../assets/placeholder.jpg') // Verifique se esse caminho está correto
 						}
 						style={itemGridStyles.image}
 					/>
@@ -278,7 +370,7 @@ export default function GeradorReceitaScreen() {
 		);
 	};
 
-	// --- NOVO: Variável para o título do botão ---
+	// Variável para o título do botão (Sem alterações)
 	const todosSelecionados =
 		ingredientes.length > 0 && selecionados.length === ingredientes.length;
 	const tituloBotaoMarcar = todosSelecionados
@@ -289,25 +381,22 @@ export default function GeradorReceitaScreen() {
 	return (
 		<SafeAreaView style={styles.safeArea}>
 			<View style={styles.container}>
-				{/* --- MODIFICADO: Header e Subtítulo --- */}
+				{/* Header e Subtítulo (Sem alterações) */}
 				<View style={styles.header}>
 					<Text style={styles.titulo}>Gerar Receita</Text>
-
-					{/* --- NOVO BOTÃO (Só aparece se a lista não estiver vazia) --- */}
 					{!isLoading && ingredientes.length > 0 && (
 						<Button
 							title={tituloBotaoMarcar}
 							onPress={handleToggleSelecionarTudo}
-							color="green" // Opcional, para combinar
+							color="green"
 						/>
 					)}
 				</View>
-				{/* Subtítulo agora fica fora do header */}
 				<Text style={styles.subtitulo}>
 					Selecione os ingredientes que você tem:
 				</Text>
 
-				{/* --- Restante do JSX (Sem alterações) --- */}
+				{/* Loading Inicial ou Lista (Sem alterações) */}
 				{isLoading ? (
 					<View style={styles.loadingContainer}>
 						<ActivityIndicator
@@ -336,18 +425,31 @@ export default function GeradorReceitaScreen() {
 								</Text>
 							</View>
 						}
-						// Adiciona um espaço extra no final para o botão não tampar
-						ListFooterComponent={<View style={{ height: 80 }} />}
+						ListFooterComponent={<View style={{ height: 100 }} />} // Aumentei o footer
 					/>
 				)}
 
-				{selecionados.length >= 2 && (
+				{/* --- MODIFICADO: Botão de Gerar Receita --- */}
+				{/* Só mostra se tiver 2+ ingredientes E não estiver no loading inicial */}
+				{!isLoading && selecionados.length >= 2 && (
 					<View style={styles.botaoGerarContainer}>
 						<Button
-							title={`Gerar Receita com (${selecionados.length}) Ingredientes`}
-							onPress={handleGerarJson}
+							title={
+								isGerando // --- NOVO
+									? 'Gerando Receita...'
+									: `Gerar Receita com (${selecionados.length}) Ingredientes`
+							}
+							onPress={handleGerarReceita} // --- MODIFICADO
 							color="green"
+							disabled={isGerando} // --- NOVO
 						/>
+						{/* --- NOVO: Indicador de loading para o botão --- */}
+						{isGerando && (
+							<ActivityIndicator
+								style={{ marginTop: 10 }}
+								color="green"
+							/>
+						)}
 					</View>
 				)}
 			</View>

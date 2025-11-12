@@ -15,6 +15,7 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native';
+import { useAuth } from '../../context/AuthContext'; // --- NOVO ---
 import {
 	createIngredient,
 	deleteIngredient,
@@ -273,26 +274,39 @@ export default function HomeScreen() {
 	const [unidade, setUnidade] = useState('');
 	const [fotoUri, setFotoUri] = useState<string | null>(null);
 
-	// --- Carregar ingredientes ao montar o componente ---
+	// --- NOVO: Pegar o estado de autenticação ---
+	const { isAuthenticated } = useAuth();
+
+	// --- Carregar ingredientes ---
+	// --- MODIFICADO: Agora depende do 'isAuthenticated' ---
 	useEffect(() => {
-		carregarIngredientes();
-	}, []);
+		if (isAuthenticated) {
+			// Só carrega se o usuário estiver logado
+			carregarIngredientes();
+		} else {
+			// Se o usuário não estiver logado (ex: fez logout),
+			// limpamos a lista para não mostrar dados antigos.
+			setIngredientes([]);
+		}
+	}, [isAuthenticated]); // O gatilho agora é o estado de autenticação
 
 	// Função para carregar ingredientes do backend
 	const carregarIngredientes = async () => {
 		try {
 			setIsLoading(true);
 			const data = await listIngredients();
-			
+
 			// Converter do formato da API para o formato local
-			const ingredientesFormatados: Ingrediente[] = data.map((item: Ingredient) => ({
-				id: item.id,
-				nome: item.name,
-				qtd: item.quantity,
-				unidade: item.unit,
-				foto: item.image_url,
-			}));
-			
+			const ingredientesFormatados: Ingrediente[] = data.map(
+				(item: Ingredient) => ({
+					id: item.id,
+					nome: item.name,
+					qtd: item.quantity,
+					unidade: item.unit,
+					foto: item.image_url,
+				}),
+			);
+
 			setIngredientes(ingredientesFormatados);
 		} catch (error) {
 			Alert.alert('Erro', 'Não foi possível carregar os ingredientes.');
@@ -305,7 +319,12 @@ export default function HomeScreen() {
 	// Função para recarregar (pull to refresh)
 	const handleRefresh = async () => {
 		setIsRefreshing(true);
-		await carregarIngredientes();
+		// A função 'carregarIngredientes' já é segura, pois o useEffect
+		// que a chama depende do 'isAuthenticated'. Mas por garantia,
+		// podemos checar aqui também.
+		if (isAuthenticated) {
+			await carregarIngredientes();
+		}
 		setIsRefreshing(false);
 	};
 
@@ -401,7 +420,7 @@ export default function HomeScreen() {
 	};
 
 	// --- Funções de CRUD (Create, Read, Update, Delete) ---
-
+	let id = 0;
 	// 1. CREATE (Adicionar)
 	const handleAdicionarIngrediente = async () => {
 		if (!nomeIngrediente || !quantidade || !unidade) {
@@ -411,7 +430,7 @@ export default function HomeScreen() {
 
 		try {
 			setIsLoading(true);
-			
+
 			const novoIngrediente = await createIngredient({
 				name: nomeIngrediente,
 				quantity: quantidade,
@@ -454,7 +473,7 @@ export default function HomeScreen() {
 
 		try {
 			setIsLoading(true);
-			
+
 			const ingredienteAtualizado = await updateIngredient(
 				ingredienteSelecionado.id,
 				{
@@ -462,7 +481,7 @@ export default function HomeScreen() {
 					quantity: quantidade,
 					unit: unidade,
 					image_url: fotoUri,
-				}
+				},
 			);
 
 			// Atualiza a lista local usando 'map'
@@ -511,22 +530,32 @@ export default function HomeScreen() {
 					onPress: async () => {
 						try {
 							setIsLoading(true);
-							
+
 							await deleteIngredient(ingredienteSelecionado.id);
 
 							// Remove da lista local
 							setIngredientes((ingredientesAtuais) =>
 								ingredientesAtuais.filter(
-									(ing) => ing.id !== ingredienteSelecionado.id,
+									(ing) =>
+										ing.id !== ingredienteSelecionado.id,
 								),
 							);
 
 							setOptionsModalVisible(false);
 							setIngredienteSelecionado(null);
-							Alert.alert('Sucesso', 'Ingrediente removido com sucesso!');
+							Alert.alert(
+								'Sucesso',
+								'Ingrediente removido com sucesso!',
+							);
 						} catch (error) {
-							Alert.alert('Erro', 'Não foi possível remover o ingrediente.');
-							console.error('Erro ao remover ingrediente:', error);
+							Alert.alert(
+								'Erro',
+								'Não foi possível remover o ingrediente.',
+							);
+							console.error(
+								'Erro ao remover ingrediente:',
+								error,
+							);
 						} finally {
 							setIsLoading(false);
 						}
@@ -589,9 +618,20 @@ export default function HomeScreen() {
 
 				{/* --- Lista / Grade (Sem alteração) --- */}
 				{isLoading && ingredientes.length === 0 ? (
-					<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-						<ActivityIndicator size="large" color="green" />
-						<Text style={{ marginTop: 10, color: '#666' }}>Carregando ingredientes...</Text>
+					<View
+						style={{
+							flex: 1,
+							justifyContent: 'center',
+							alignItems: 'center',
+						}}
+					>
+						<ActivityIndicator
+							size="large"
+							color="green"
+						/>
+						<Text style={{ marginTop: 10, color: '#666' }}>
+							Carregando ingredientes...
+						</Text>
 					</View>
 				) : (
 					<FlatList
@@ -604,23 +644,47 @@ export default function HomeScreen() {
 						refreshing={isRefreshing}
 						onRefresh={handleRefresh}
 						ListEmptyComponent={
-							<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 }}>
-								<Text style={{ fontSize: 18, color: '#666' }}>Nenhum ingrediente cadastrado</Text>
-								<Text style={{ fontSize: 14, color: '#999', marginTop: 10 }}>
-									Toque no botão + para adicionar
+							<View
+								style={{
+									flex: 1,
+									justifyContent: 'center',
+									alignItems: 'center',
+									marginTop: 50,
+								}}
+							>
+								<Text style={{ fontSize: 18, color: '#666' }}>
+									{/* --- MODIFICADO: Mensagem dinâmica --- */}
+									{isAuthenticated
+										? 'Nenhum ingrediente cadastrado'
+										: 'Faça login para ver seus ingredientes'}
 								</Text>
+								{/* Só mostra o "toque no +" se estiver logado */}
+								{isAuthenticated && (
+									<Text
+										style={{
+											fontSize: 14,
+											color: '#999',
+											marginTop: 10,
+										}}
+									>
+										Toque no botão + para adicionar
+									</Text>
+								)}
 							</View>
 						}
 					/>
 				)}
 
 				{/* --- Botão Flutuante de Adicionar (+) --- */}
-				<TouchableOpacity
-					style={styles.fab}
-					onPress={handleAbrirModalAdicionar} // --- MODIFICADO ---
-				>
-					<Text style={styles.fabText}>+</Text>
-				</TouchableOpacity>
+				{/* --- MODIFICADO: Só mostra o FAB se estiver logado --- */}
+				{isAuthenticated && (
+					<TouchableOpacity
+						style={styles.fab}
+						onPress={handleAbrirModalAdicionar} // --- MODIFICADO ---
+					>
+						<Text style={styles.fabText}>+</Text>
+					</TouchableOpacity>
+				)}
 
 				{/* --- MODIFICADO: Modal (Formulário) para Adicionar/Editar --- */}
 				<Modal
@@ -685,7 +749,13 @@ export default function HomeScreen() {
 								/>
 								<Button
 									// --- MODIFICADO: Título e Ação dinâmicos ---
-									title={isLoading ? 'Salvando...' : (modoEdicao ? 'Salvar' : 'Adicionar')}
+									title={
+										isLoading
+											? 'Salvando...'
+											: modoEdicao
+											? 'Salvar'
+											: 'Adicionar'
+									}
 									onPress={
 										modoEdicao
 											? handleSalvarEdicao
