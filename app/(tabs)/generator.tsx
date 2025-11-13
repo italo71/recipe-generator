@@ -13,6 +13,8 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native';
+import { listIngredients, Ingredient } from '../../services/ingredient_service';
+import { useFocusEffect } from '@react-navigation/native';
 
 // 1. Tipo Ingrediente (Sem alterações)
 interface Ingrediente {
@@ -44,25 +46,6 @@ interface ApiResponseReceitas {
 	listaReceitas: Receita[];
 }
 
-// 2. Mock Ingredientes (Sem alterações)
-const MOCK_INGREDIENTES: Ingrediente[] = [
-	{
-		id: '1',
-		nome: 'Tomate',
-		qtd: '2',
-		unidade: 'un',
-		foto: 'https://img.freepik.com/fotos-gratis/tomate-vermelho-isolado-no-branco_1205-1215.jpg',
-	},
-	{
-		id: '2',
-		nome: 'Cebola',
-		qtd: '1',
-		unidade: 'un',
-		foto: 'https://img.freepik.com/fotos-gratis/cebola-isolada-no-fundo-branco_1205-1100.jpg',
-	},
-	// ... (outros ingredientes)
-];
-
 // --- NOVO: Função Mock para simular a API de gerar receita ---
 /**
  * Simula o envio dos ingredientes para a API e o recebimento de uma receita.
@@ -81,7 +64,6 @@ const simularApiGerarReceita = async (
 	console.log('--- RESPOSTA DA API (MOCK) RECEBIDA ---');
 
 	// Simula uma resposta bem-sucedida
-	// (Você pode trocar essa receita por outra para testar)
 	const mockResposta: ApiResponseReceitas = {
 		listaReceitas: [
 			{
@@ -118,13 +100,10 @@ const simularApiGerarReceita = async (
 		],
 	};
 
-	// Para testar um erro, descomente a linha abaixo:
-	// throw new Error('Erro simulado de conexão com o banco de dados');
-
 	return mockResposta;
 };
 
-// 3. Estilos (itemGridStyles sem alterações)
+// 3. Estilos
 const { width } = Dimensions.get('window');
 const itemGridSize = width / 2 - 25;
 
@@ -168,7 +147,6 @@ const itemGridStyles = StyleSheet.create({
 	},
 });
 
-// --- ESTILOS PRINCIPAIS ---
 const styles = StyleSheet.create({
 	safeArea: {
 		flex: 1,
@@ -224,7 +202,7 @@ const styles = StyleSheet.create({
 		borderTopWidth: 1,
 		borderTopColor: '#eee',
 		backgroundColor: '#f5f5f5',
-		alignItems: 'center', // --- MODIFICADO: Para centralizar o ActivityIndicator
+		alignItems: 'center',
 	},
 });
 
@@ -235,18 +213,32 @@ export default function GeradorReceitaScreen() {
 	const [isLoading, setIsLoading] = useState(false); // Loading da lista inicial
 	const [isGerando, setIsGerando] = useState(false); // --- NOVO: Loading do botão Gerar
 
-	useEffect(() => {
-		carregarIngredientes();
-	}, []);
+	// Usar useFocusEffect para recarregar quando a tela receber foco
+	useFocusEffect(
+		React.useCallback(() => {
+			carregarIngredientes();
+		}, [])
+	);
 
-	// carregarIngredientes (mock) (Sem alterações)
+	// carregarIngredientes agora busca da API real
 	const carregarIngredientes = async () => {
 		try {
 			setIsLoading(true);
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-			setIngredientes(MOCK_INGREDIENTES);
+			const ingredientesApi = await listIngredients();
+
+			// Mapeia os ingredientes da API para o formato usado no componente
+			const ingredientesMapeados = ingredientesApi.map((ing: Ingredient) => ({
+				id: ing.id,
+				nome: ing.name,
+				qtd: ing.quantity,
+				unidade: ing.unit,
+				foto: ing.image_url,
+			}));
+
+			setIngredientes(ingredientesMapeados);
 		} catch (error) {
-			Alert.alert('Erro', 'Não foi possível carregar os ingredientes.');
+			console.error('Erro ao carregar ingredientes:', error);
+			Alert.alert('Erro', 'Não foi possível carregar os ingredientes. Verifique sua conexão.');
 		} finally {
 			setIsLoading(false);
 		}
@@ -417,39 +409,46 @@ export default function GeradorReceitaScreen() {
 						ListEmptyComponent={
 							<View style={styles.emptyContainer}>
 								<Text style={styles.emptyText}>
-									Nenhum ingrediente
+									Nenhum ingrediente encontrado
 								</Text>
 								<Text style={styles.emptySubText}>
-									Vá para a tela de cadastro para adicionar
-									itens.
+									Vá para a aba "Ingredientes" para adicionar
+									ingredientes e poder gerar receitas.
 								</Text>
 							</View>
 						}
-						ListFooterComponent={<View style={{ height: 100 }} />} // Aumentei o footer
+						ListFooterComponent={<View style={{ height: 100 }} />}
 					/>
 				)}
 
-				{/* --- MODIFICADO: Botão de Gerar Receita --- */}
-				{/* Só mostra se tiver 2+ ingredientes E não estiver no loading inicial */}
+				{/* Botão de Gerar Receita */}
 				{!isLoading && selecionados.length >= 2 && (
 					<View style={styles.botaoGerarContainer}>
 						<Button
 							title={
-								isGerando // --- NOVO
+								isGerando
 									? 'Gerando Receita...'
 									: `Gerar Receita com (${selecionados.length}) Ingredientes`
 							}
-							onPress={handleGerarReceita} // --- MODIFICADO
+							onPress={handleGerarReceita}
 							color="green"
-							disabled={isGerando} // --- NOVO
+							disabled={isGerando}
 						/>
-						{/* --- NOVO: Indicador de loading para o botão --- */}
 						{isGerando && (
 							<ActivityIndicator
 								style={{ marginTop: 10 }}
 								color="green"
 							/>
 						)}
+					</View>
+				)}
+
+				{/* Mensagem quando não há ingredientes suficientes */}
+				{!isLoading && ingredientes.length > 0 && selecionados.length < 2 && (
+					<View style={styles.botaoGerarContainer}>
+						<Text style={{ color: '#666', textAlign: 'center' }}>
+							Selecione pelo menos 2 ingredientes para gerar uma receita
+						</Text>
 					</View>
 				)}
 			</View>
