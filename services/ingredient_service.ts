@@ -15,14 +15,14 @@ export interface CreateIngredientDTO {
   name: string;
   quantity: string;
   unit: string;
-  image_url?: string | null;
+  image?: File | null;
 }
 
 export interface UpdateIngredientDTO {
   name?: string;
   quantity?: string;
   unit?: string;
-  image_url?: string | null;
+  image?: File | null;
 }
 
 /**
@@ -58,7 +58,20 @@ export const createIngredient = async (
   data: CreateIngredientDTO
 ): Promise<Ingredient> => {
   try {
-    const response = await api.post('/ingredients/', data);
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('quantity', data.quantity);
+    formData.append('unit', data.unit);
+    
+    if (data.image) {
+      formData.append('image', data.image as any);
+    }
+
+    const response = await api.post('/ingredients/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   } catch (error) {
     console.error('Erro ao criar ingrediente:', error);
@@ -74,7 +87,26 @@ export const updateIngredient = async (
   data: UpdateIngredientDTO
 ): Promise<Ingredient> => {
   try {
-    const response = await api.put(`/ingredients/${id}`, data);
+    const formData = new FormData();
+    
+    if (data.name !== undefined) {
+      formData.append('name', data.name);
+    }
+    if (data.quantity !== undefined) {
+      formData.append('quantity', data.quantity);
+    }
+    if (data.unit !== undefined) {
+      formData.append('unit', data.unit);
+    }
+    if (data.image !== undefined && data.image !== null) {
+      formData.append('image', data.image as any);
+    }
+
+    const response = await api.put(`/ingredients/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   } catch (error) {
     console.error(`Erro ao atualizar ingrediente ${id}:`, error);
