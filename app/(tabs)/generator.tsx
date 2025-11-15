@@ -192,6 +192,24 @@ const styles = StyleSheet.create({
 		fontWeight: 'bold',
 		fontSize: 16,
 	},
+	receitaCard: {
+		backgroundColor: '#f9f9f9',
+		borderRadius: 8,
+		padding: 15,
+		marginBottom: 10,
+		borderWidth: 1,
+		borderColor: '#ddd',
+	},
+	receitaCardTitle: {
+		fontSize: 18,
+		fontWeight: 'bold',
+		color: '#333',
+		marginBottom: 5,
+	},
+	receitaCardInfo: {
+		fontSize: 14,
+		color: '#666',
+	},
 });
 
 export default function GeradorReceitaScreen() {
@@ -201,9 +219,11 @@ export default function GeradorReceitaScreen() {
 	const [isGerando, setIsGerando] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	
-	// Estado para a receita gerada e modal
-	const [receitaGerada, setReceitaGerada] = useState<GeneratedRecipe | null>(null);
-	const [modalVisible, setModalVisible] = useState(false);
+	// Estado para as receitas geradas (lista) e modal
+	const [receitasGeradas, setReceitasGeradas] = useState<GeneratedRecipe[]>([]);
+	const [receitaSelecionada, setReceitaSelecionada] = useState<GeneratedRecipe | null>(null);
+	const [listaModalVisible, setListaModalVisible] = useState(false);
+	const [detalheModalVisible, setDetalheModalVisible] = useState(false);
 
 	useFocusEffect(
 		React.useCallback(() => {
@@ -264,9 +284,9 @@ export default function GeradorReceitaScreen() {
 
 		try {
 			setIsGerando(true);
-			const receita = await generateRecipe(listaParaJson);
-			setReceitaGerada(receita);
-			setModalVisible(true);
+			const response = await generateRecipe(listaParaJson);
+			setReceitasGeradas(response);
+			setListaModalVisible(true);
 		} catch (error: any) {
 			console.error(error);
 			Alert.alert(
@@ -278,25 +298,21 @@ export default function GeradorReceitaScreen() {
 		}
 	};
 
+	const handleSelecionarReceita = (receita: GeneratedRecipe) => {
+		setReceitaSelecionada(receita);
+		setListaModalVisible(false);
+		setDetalheModalVisible(true);
+	};
+
 	const handleSalvarReceita = async () => {
-		if (!receitaGerada) return;
+		if (!receitaSelecionada) return;
 
 		try {
 			setIsSaving(true);
-			await saveRecipe(receitaGerada);
+			await saveRecipe(receitaSelecionada);
 			Alert.alert(
 				'Sucesso!',
-				'Receita salva com sucesso! Você pode vê-la na aba Receitas.',
-				[
-					{
-						text: 'OK',
-						onPress: () => {
-							setModalVisible(false);
-							setReceitaGerada(null);
-							setSelecionados([]);
-						},
-					},
-				]
+				'Receita salva com sucesso! Você pode vê-la na aba Receitas.'
 			);
 		} catch (error: any) {
 			console.error(error);
@@ -309,9 +325,15 @@ export default function GeradorReceitaScreen() {
 		}
 	};
 
-	const handleFecharModal = () => {
-		setModalVisible(false);
-		setReceitaGerada(null);
+	const handleFecharDetalheModal = () => {
+		setDetalheModalVisible(false);
+		setReceitaSelecionada(null);
+		setListaModalVisible(true);
+	};
+
+	const handleFecharListaModal = () => {
+		setListaModalVisible(false);
+		setReceitasGeradas([]);
 	};
 
 	const renderIngredienteGrid = ({ item }: { item: Ingrediente }) => {
@@ -372,7 +394,6 @@ export default function GeradorReceitaScreen() {
 				{isLoading ? (
 					<View style={styles.loadingContainer}>
 						<ActivityIndicator size="large" color="green" />
-						/>
 						<Text style={{ marginTop: 10, color: '#666' }}>
 							Carregando...
 						</Text>
@@ -429,25 +450,62 @@ export default function GeradorReceitaScreen() {
 				)}
 			</View>
 
-			{/* Modal da Receita */}
+			{/* Modal da Lista de Receitas */}
 			<Modal
-				visible={modalVisible}
+				visible={listaModalVisible}
 				animationType="slide"
 				transparent={true}
-				onRequestClose={handleFecharModal}
+				onRequestClose={handleFecharListaModal}
+			>
+				<View style={styles.modalOverlay}>
+					<View style={styles.modalContent}>
+						<Text style={styles.modalTitle}>Receitas Geradas</Text>
+						<Text style={styles.subtitulo}>
+							Selecione uma receita para ver os detalhes:
+						</Text>
+
+						<FlatList
+							data={receitasGeradas}
+							keyExtractor={(item, index) => `receita-${index}`}
+							renderItem={({ item }) => (
+								<TouchableOpacity
+									style={styles.receitaCard}
+									onPress={() => handleSelecionarReceita(item)}
+								>
+									<Text style={styles.receitaCardTitle}>
+										{item.nome}
+									</Text>
+									<Text style={styles.receitaCardInfo}>
+										{item.listaIngredientes.length} ingredientes •{' '}
+										{item.passos.length} passos
+									</Text>
+								</TouchableOpacity>
+						)}
+						contentContainerStyle={{ paddingBottom: 10 }}
+					/>
+				</View>
+			</View>
+		</Modal>
+
+			{/* Modal de Detalhes da Receita */}
+			<Modal
+				visible={detalheModalVisible}
+				animationType="slide"
+				transparent={true}
+				onRequestClose={handleFecharDetalheModal}
 			>
 				<View style={styles.modalOverlay}>
 					<View style={styles.modalContent}>
 						<ScrollView showsVerticalScrollIndicator={true}>
 							<Text style={styles.modalTitle}>
-								{receitaGerada?.nome}
+								{receitaSelecionada?.nome}
 							</Text>
 
 							<View style={styles.modalSection}>
 								<Text style={styles.modalSectionTitle}>
 									Ingredientes:
 								</Text>
-								{receitaGerada?.listaIngredientes.map((ing, index) => (
+								{receitaSelecionada?.listaIngredientes.map((ing, index) => (
 									<Text key={index} style={styles.ingredientItem}>
 										• {ing.nome} ({ing.quantidade})
 									</Text>
@@ -458,7 +516,7 @@ export default function GeradorReceitaScreen() {
 								<Text style={styles.modalSectionTitle}>
 									Modo de Preparo:
 								</Text>
-								{receitaGerada?.passos.map((passo) => (
+								{receitaSelecionada?.passos.map((passo) => (
 									<Text key={passo.numero} style={styles.stepItem}>
 										{passo.numero}. {passo.descricao}
 									</Text>
@@ -478,10 +536,10 @@ export default function GeradorReceitaScreen() {
 							</TouchableOpacity>
 							<TouchableOpacity
 								style={[styles.modalButton, styles.closeButton]}
-								onPress={handleFecharModal}
+								onPress={handleFecharDetalheModal}
 								disabled={isSaving}
 							>
-								<Text style={styles.modalButtonText}>Fechar</Text>
+								<Text style={styles.modalButtonText}>Voltar</Text>
 							</TouchableOpacity>
 						</View>
 					</View>
@@ -490,3 +548,6 @@ export default function GeradorReceitaScreen() {
 		</SafeAreaView>
 	);
 }
+
+
+

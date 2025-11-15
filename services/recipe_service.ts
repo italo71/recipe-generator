@@ -1,5 +1,5 @@
-import { api } from './api';
 import * as SecureStore from 'expo-secure-store';
+import { api } from './api';
 
 // Tipos
 export interface RecipeIngredient {
@@ -65,7 +65,7 @@ export interface RecipeListItem {
  */
 export async function generateRecipe(
   ingredients: { Ingrediente: string; qtd: string }[]
-): Promise<GeneratedRecipe> {
+): Promise<GeneratedRecipe[]> {
   try {
     const token = await SecureStore.getItemAsync('token');
     
@@ -84,7 +84,7 @@ export async function generateRecipe(
     );
 
     if (response.data.listaReceitas && response.data.listaReceitas.length > 0) {
-      return response.data.listaReceitas[0];
+      return response.data.listaReceitas;
     }
 
     throw new Error('Nenhuma receita foi gerada');
