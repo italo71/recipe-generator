@@ -1,27 +1,27 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
-	ActivityIndicator,
-	Alert,
-	Button,
-	Dimensions,
-	FlatList,
-	Image,
-	Modal,
-	SafeAreaView,
-	StyleSheet,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View,
+    ActivityIndicator,
+    Alert,
+    Button,
+    Dimensions,
+    FlatList,
+    Image,
+    Modal,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext'; // --- NOVO ---
 import {
-	createIngredient,
-	deleteIngredient,
-	listIngredients,
-	updateIngredient,
-	type Ingredient,
+    createIngredient,
+    deleteIngredient,
+    listIngredients,
+    updateIngredient,
+    type Ingredient,
 } from '../../services/ingredient_service';
 
 // 1. Definindo o tipo do nosso Ingrediente (TypeScript)
@@ -431,11 +431,25 @@ export default function HomeScreen() {
 		try {
 			setIsLoading(true);
 
+			// Preparar o objeto File se houver foto
+			let imageFile: File | null = null;
+			if (fotoUri) {
+				const filename = fotoUri.split('/').pop() || 'photo.jpg';
+				const match = /\.(\w+)$/.exec(filename);
+				const type = match ? `image/${match[1]}` : 'image/jpeg';
+				
+				imageFile = {
+					uri: fotoUri,
+					name: filename,
+					type: type,
+				} as any;
+			}
+
 			const novoIngrediente = await createIngredient({
 				name: nomeIngrediente,
 				quantity: quantidade,
 				unit: unidade,
-				image_url: fotoUri,
+				image: imageFile,
 			});
 
 			// Adiciona à lista local
@@ -474,13 +488,27 @@ export default function HomeScreen() {
 		try {
 			setIsLoading(true);
 
+			// Preparar o objeto File se houver foto
+			let imageFile: File | null = null;
+			if (fotoUri) {
+				const filename = fotoUri.split('/').pop() || 'photo.jpg';
+				const match = /\.(\w+)$/.exec(filename);
+				const type = match ? `image/${match[1]}` : 'image/jpeg';
+				
+				imageFile = {
+					uri: fotoUri,
+					name: filename,
+					type: type,
+				} as any;
+			}
+
 			const ingredienteAtualizado = await updateIngredient(
 				ingredienteSelecionado.id,
 				{
 					name: nomeIngrediente,
 					quantity: quantidade,
 					unit: unidade,
-					image_url: fotoUri,
+					image: imageFile,
 				},
 			);
 
