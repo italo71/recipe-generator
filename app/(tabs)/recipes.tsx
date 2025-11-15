@@ -1,27 +1,30 @@
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-	View,
-	Text,
-	StyleSheet,
-	FlatList,
-	TouchableOpacity,
-	ActivityIndicator,
-	SafeAreaView,
-	Alert,
-	Modal,
-	ScrollView,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import {
-	listRecipes,
-	getRecipe,
-	deleteRecipe,
-	RecipeListItem,
-	SavedRecipe,
+    deleteRecipe,
+    getRecipe,
+    listRecipes,
+    RecipeListItem,
+    SavedRecipe,
 } from '../../services/recipe_service';
 
 export default function RecipesScreen() {
 	const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
+	const [filteredRecipes, setFilteredRecipes] = useState<RecipeListItem[]>([]);
+	const [searchText, setSearchText] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
 	const [selectedRecipe, setSelectedRecipe] = useState<SavedRecipe | null>(null);
 	const [modalVisible, setModalVisible] = useState(false);
@@ -38,11 +41,25 @@ export default function RecipesScreen() {
 			setIsLoading(true);
 			const data = await listRecipes();
 			setRecipes(data);
+			setFilteredRecipes(data);
 		} catch (error) {
 			console.error('Erro ao carregar receitas:', error);
 			Alert.alert('Erro', 'Não foi possível carregar as receitas.');
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const handleSearch = (text: string) => {
+		setSearchText(text);
+		
+		if (text.trim() === '') {
+			setFilteredRecipes(recipes);
+		} else {
+			const filtered = recipes.filter((recipe) =>
+				recipe.name.toLowerCase().includes(text.toLowerCase())
+			);
+			setFilteredRecipes(filtered);
 		}
 	};
 
@@ -114,6 +131,13 @@ export default function RecipesScreen() {
 		<SafeAreaView style={styles.container}>
 			<View style={styles.header}>
 				<Text style={styles.title}>Minhas Receitas</Text>
+				<TextInput
+					style={styles.searchInput}
+					placeholder="Buscar receitas..."
+					value={searchText}
+					onChangeText={handleSearch}
+					placeholderTextColor="#999"
+				/>
 			</View>
 
 			{isLoading ? (
@@ -123,17 +147,21 @@ export default function RecipesScreen() {
 				</View>
 			) : (
 				<FlatList
-					data={recipes}
+					data={filteredRecipes}
 					renderItem={renderRecipeItem}
 					keyExtractor={(item) => item.id}
 					contentContainerStyle={styles.listContainer}
 					ListEmptyComponent={
 						<View style={styles.emptyContainer}>
 							<Text style={styles.emptyText}>
-								Nenhuma receita salva ainda
+								{searchText
+									? 'Nenhuma receita encontrada'
+									: 'Nenhuma receita salva ainda'}
 							</Text>
 							<Text style={styles.emptySubText}>
-								Gere receitas na aba "Gerar" e salve suas favoritas!
+								{searchText
+									? 'Tente buscar com outro termo'
+									: 'Gere receitas na aba "Gerar" e salve suas favoritas!'}
 							</Text>
 						</View>
 					}
@@ -232,6 +260,16 @@ const styles = StyleSheet.create({
 	title: {
 		fontSize: 24,
 		fontWeight: 'bold',
+		marginBottom: 15,
+	},
+	searchInput: {
+		backgroundColor: '#f5f5f5',
+		borderRadius: 8,
+		paddingHorizontal: 15,
+		paddingVertical: 10,
+		fontSize: 16,
+		borderWidth: 1,
+		borderColor: '#ddd',
 	},
 	loadingContainer: {
 		flex: 1,
