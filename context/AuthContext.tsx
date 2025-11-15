@@ -93,16 +93,23 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const login = async (username: string, password: string) => {
     try {
+      console.log('🔐 Tentando fazer login com usuário:', username);
+      
       // 1. Fazer login para pegar o token
       const response = await api.post('/auth/login', { username, password });
       const { access_token } = response.data;
+      
+      console.log('✅ Login bem-sucedido, token recebido');
 
       // 2. Configurar o token para futuras requisições
       api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       await SecureStore.setItemAsync('token', access_token);
 
       // 3. Buscar os dados do usuário com /auth/me
+      console.log('📝 Buscando dados do usuário...');
       const userResponse = await api.get('/auth/me');
+      
+      console.log('✅ Dados do usuário recebidos:', userResponse.data.username);
 
       // 4. Salvar tudo no estado
       setAuthState({
@@ -113,8 +120,14 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       });
       return true;
 
-    } catch (e) {
-      console.error('Erro no login ou ao buscar /auth/me:', e);
+    } catch (e: any) {
+      console.error('❌ Erro no login:', e.message);
+      if (e.response) {
+        console.error('Status:', e.response.status);
+        console.error('Data:', e.response.data);
+      } else if (e.request) {
+        console.error('⚠️ Requisição foi feita mas sem resposta - verifique se o backend está acessível');
+      }
       return false;
     }
   };

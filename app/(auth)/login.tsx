@@ -30,16 +30,27 @@ export default function LoginScreen() {
       return;
     }
 
+    console.log('📱 Iniciando processo de login...');
+
     try {
       const success = await login(username, password);
 
       if (success) {
+        console.log('✅ Login realizado com sucesso, redirecionando...');
         router.replace('/(tabs)');
       } else {
+        console.log('❌ Login falhou');
         Alert.alert('Erro', 'Usuário ou senha inválidos.');
       }
-    } catch (e) {
-      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+    } catch (e: any) {
+      console.error('❌ Exceção no handleLogin:', e);
+      Alert.alert(
+        'Erro de Conexão', 
+        'Não foi possível conectar ao servidor. Verifique se:\n\n' +
+        '1. O backend está rodando\n' +
+        '2. O IP está correto (192.168.19.162:8000)\n' +
+        '3. Seu celular está na mesma rede WiFi'
+      );
     } finally {
       setLoading(false);
     }

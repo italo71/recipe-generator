@@ -29,9 +29,27 @@ export default function TabsLayout() {
 
 			{}
 			<Tabs.Screen
-				name="profile"
+				name="generator"
 				options={{
-					title: 'Perfil',
+					title: 'Gerar',
+					tabBarIcon: ({ color, focused }) => (
+						<Text
+							style={{
+								color: color,
+								fontSize: focused ? 24 : 20,
+							}}
+							>
+							🥘
+						</Text>
+					),
+				}}
+			/>
+
+			{}
+			<Tabs.Screen
+				name="recipes"
+				options={{
+					title: 'Receitas',
 					tabBarIcon: ({ color, focused }) => (
 						<Text
 							style={{
@@ -39,16 +57,17 @@ export default function TabsLayout() {
 								fontSize: focused ? 24 : 20,
 							}}
 						>
-							👤
+							📖
 						</Text>
 					),
 				}}
 			/>
+
 			{}
 			<Tabs.Screen
-				name="generator"
+				name="profile"
 				options={{
-					title: 'Gerar',
+					title: 'Perfil',
 					tabBarIcon: ({ color, focused }) => (
 						<Text
 							style={{

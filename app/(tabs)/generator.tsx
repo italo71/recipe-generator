@@ -7,16 +7,19 @@ import {
 	Dimensions,
 	FlatList,
 	Image,
+	Modal,
 	SafeAreaView,
+	ScrollView,
 	StyleSheet,
 	Text,
 	TouchableOpacity,
 	View,
 } from 'react-native';
 import { listIngredients, Ingredient } from '../../services/ingredient_service';
+import { generateRecipe, saveRecipe, GeneratedRecipe } from '../../services/recipe_service';
 import { useFocusEffect } from '@react-navigation/native';
 
-// 1. Tipo Ingrediente (Sem alterações)
+// Tipo Ingrediente
 interface Ingrediente {
 	id: string;
 	nome: string;
@@ -24,84 +27,6 @@ interface Ingrediente {
 	unidade: string;
 	foto: string | null;
 }
-
-// --- NOVO: Tipos para a Resposta da Receita ---
-interface IngredienteReceita {
-	nome: string;
-	quantidade: string;
-}
-
-interface PassoReceita {
-	numero: number;
-	descricao: string;
-}
-
-interface Receita {
-	nome: string;
-	listaIngredientes: IngredienteReceita[];
-	passos: PassoReceita[];
-}
-
-interface ApiResponseReceitas {
-	listaReceitas: Receita[];
-}
-
-// --- NOVO: Função Mock para simular a API de gerar receita ---
-/**
- * Simula o envio dos ingredientes para a API e o recebimento de uma receita.
- */
-const simularApiGerarReceita = async (
-	ingredientesEnviados: any,
-): Promise<ApiResponseReceitas> => {
-	console.log(
-		'--- ENVIANDO PARA API (MOCK) ---',
-		JSON.stringify(ingredientesEnviados, null, 2),
-	);
-
-	// Simula um delay de rede de 2 segundos
-	await new Promise((resolve) => setTimeout(resolve, 2000));
-
-	console.log('--- RESPOSTA DA API (MOCK) RECEBIDA ---');
-
-	// Simula uma resposta bem-sucedida
-	const mockResposta: ApiResponseReceitas = {
-		listaReceitas: [
-			{
-				nome: 'Molho de Tomate Caseiro',
-				listaIngredientes: [
-					{ nome: 'Tomate', quantidade: '2 unidades' },
-					{ nome: 'Cebola', quantidade: '1 unidade' },
-					{ nome: 'Alho', quantidade: '3 dentes' },
-					{ nome: 'Azeite', quantidade: '2 colheres' },
-					{ nome: 'Sal', quantidade: 'a gosto' },
-				],
-				passos: [
-					{
-						numero: 1,
-						descricao: 'Pique o tomate, a cebola e o alho.',
-					},
-					{
-						numero: 2,
-						descricao:
-							'Refogue a cebola e o alho no azeite até dourar.',
-					},
-					{
-						numero: 3,
-						descricao:
-							'Adicione o tomate picado e cozinhe em fogo baixo.',
-					},
-					{
-						numero: 4,
-						descricao:
-							'Tempere com sal e deixe apurar por 15 minutos.',
-					},
-				],
-			},
-		],
-	};
-
-	return mockResposta;
-};
 
 // 3. Estilos
 const { width } = Dimensions.get('window');
@@ -204,23 +129,88 @@ const styles = StyleSheet.create({
 		backgroundColor: '#f5f5f5',
 		alignItems: 'center',
 	},
+	// Estilos do Modal
+	modalOverlay: {
+		flex: 1,
+		backgroundColor: 'rgba(0,0,0,0.5)',
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	modalContent: {
+		backgroundColor: 'white',
+		borderRadius: 10,
+		padding: 20,
+		width: width * 0.9,
+		maxHeight: '80%',
+	},
+	modalTitle: {
+		fontSize: 22,
+		fontWeight: 'bold',
+		marginBottom: 15,
+		textAlign: 'center',
+	},
+	modalSection: {
+		marginBottom: 15,
+	},
+	modalSectionTitle: {
+		fontSize: 18,
+		fontWeight: 'bold',
+		marginBottom: 8,
+		color: '#333',
+	},
+	ingredientItem: {
+		fontSize: 14,
+		marginBottom: 4,
+		color: '#666',
+	},
+	stepItem: {
+		fontSize: 14,
+		marginBottom: 8,
+		color: '#666',
+		lineHeight: 20,
+	},
+	modalButtons: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		marginTop: 15,
+		gap: 10,
+	},
+	modalButton: {
+		flex: 1,
+		padding: 12,
+		borderRadius: 8,
+		alignItems: 'center',
+	},
+	saveButton: {
+		backgroundColor: 'green',
+	},
+	closeButton: {
+		backgroundColor: '#666',
+	},
+	modalButtonText: {
+		color: 'white',
+		fontWeight: 'bold',
+		fontSize: 16,
+	},
 });
 
-// --- O Componente ---
 export default function GeradorReceitaScreen() {
 	const [ingredientes, setIngredientes] = useState<Ingrediente[]>([]);
 	const [selecionados, setSelecionados] = useState<string[]>([]);
-	const [isLoading, setIsLoading] = useState(false); // Loading da lista inicial
-	const [isGerando, setIsGerando] = useState(false); // --- NOVO: Loading do botão Gerar
+	const [isLoading, setIsLoading] = useState(false);
+	const [isGerando, setIsGerando] = useState(false);
+	const [isSaving, setIsSaving] = useState(false);
+	
+	// Estado para a receita gerada e modal
+	const [receitaGerada, setReceitaGerada] = useState<GeneratedRecipe | null>(null);
+	const [modalVisible, setModalVisible] = useState(false);
 
-	// Usar useFocusEffect para recarregar quando a tela receber foco
 	useFocusEffect(
 		React.useCallback(() => {
 			carregarIngredientes();
 		}, [])
 	);
 
-	// carregarIngredientes agora busca da API real
 	const carregarIngredientes = async () => {
 		try {
 			setIsLoading(true);
@@ -244,7 +234,6 @@ export default function GeradorReceitaScreen() {
 		}
 	};
 
-	// handleSelecionar (Sem alterações)
 	const handleSelecionar = (id: string) => {
 		if (selecionados.includes(id)) {
 			setSelecionados(selecionados.filter((itemId) => itemId !== id));
@@ -253,7 +242,6 @@ export default function GeradorReceitaScreen() {
 		}
 	};
 
-	// handleToggleSelecionarTudo (Sem alterações)
 	const handleToggleSelecionarTudo = () => {
 		if (ingredientes.length === 0) return;
 
@@ -265,30 +253,7 @@ export default function GeradorReceitaScreen() {
 		}
 	};
 
-	// --- NOVO: Função para formatar e exibir a receita no Alert ---
-	const mostrarReceita = (receita: Receita) => {
-		// Formata a string para o Alert
-		let mensagem = 'Ingredientes:\n';
-		receita.listaIngredientes.forEach((ing) => {
-			mensagem += `• ${ing.nome} (${ing.quantidade})\n`;
-		});
-
-		mensagem += '\nModo de Preparo:\n';
-		receita.passos.forEach((passo) => {
-			mensagem += `${passo.numero}. ${passo.descricao}\n`;
-		});
-
-		Alert.alert(
-			receita.nome, // Título do Alert
-			mensagem, // Corpo do Alert
-			[{ text: 'OK' }],
-			{ cancelable: true },
-		);
-	};
-
-	// --- MODIFICADO: Antiga handleGerarJson agora é handleGerarReceita e é async ---
 	const handleGerarReceita = async () => {
-		// 1. Prepara o JSON de *envio*
 		const ingredientesFiltrados = ingredientes.filter((ing) =>
 			selecionados.includes(ing.id),
 		);
@@ -297,39 +262,58 @@ export default function GeradorReceitaScreen() {
 			qtd: `${item.qtd} ${item.unidade}`,
 		}));
 
-		const jsonRequest = {
-			listaIngredientes: listaParaJson,
-		};
-
-		// 2. Inicia o loading e chama a API
 		try {
-			setIsGerando(true); // Ativa o loading do botão
-			const resposta = await simularApiGerarReceita(jsonRequest);
-
-			// 3. Processa a resposta
-			if (resposta.listaReceitas && resposta.listaReceitas.length > 0) {
-				// Pega a primeira receita da lista
-				const receitaRecebida = resposta.listaReceitas[0];
-				mostrarReceita(receitaRecebida);
-			} else {
-				Alert.alert(
-					'Nenhuma receita',
-					'Não foi possível encontrar uma receita com esses ingredientes.',
-				);
-			}
-		} catch (error) {
+			setIsGerando(true);
+			const receita = await generateRecipe(listaParaJson);
+			setReceitaGerada(receita);
+			setModalVisible(true);
+		} catch (error: any) {
 			console.error(error);
 			Alert.alert(
 				'Erro',
-				'Ocorreu um problema ao se comunicar com o servidor.',
+				error.response?.data?.detail || 'Não foi possível gerar a receita.',
 			);
 		} finally {
-			// 4. Para o loading
 			setIsGerando(false);
 		}
 	};
 
-	// renderIngredienteGrid (Sem alterações)
+	const handleSalvarReceita = async () => {
+		if (!receitaGerada) return;
+
+		try {
+			setIsSaving(true);
+			await saveRecipe(receitaGerada);
+			Alert.alert(
+				'Sucesso!',
+				'Receita salva com sucesso! Você pode vê-la na aba Receitas.',
+				[
+					{
+						text: 'OK',
+						onPress: () => {
+							setModalVisible(false);
+							setReceitaGerada(null);
+							setSelecionados([]);
+						},
+					},
+				]
+			);
+		} catch (error: any) {
+			console.error(error);
+			Alert.alert(
+				'Erro',
+				error.response?.data?.detail || 'Não foi possível salvar a receita.',
+			);
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
+	const handleFecharModal = () => {
+		setModalVisible(false);
+		setReceitaGerada(null);
+	};
+
 	const renderIngredienteGrid = ({ item }: { item: Ingrediente }) => {
 		const isSelecionado = selecionados.includes(item.id);
 		return (
@@ -347,7 +331,7 @@ export default function GeradorReceitaScreen() {
 						source={
 							item.foto
 								? { uri: item.foto }
-								: require('../../assets/placeholder.jpg') // Verifique se esse caminho está correto
+								: require('../../assets/placeholder.jpg')
 						}
 						style={itemGridStyles.image}
 					/>
@@ -362,18 +346,15 @@ export default function GeradorReceitaScreen() {
 		);
 	};
 
-	// Variável para o título do botão (Sem alterações)
 	const todosSelecionados =
 		ingredientes.length > 0 && selecionados.length === ingredientes.length;
 	const tituloBotaoMarcar = todosSelecionados
 		? 'Desmarcar Todos'
 		: 'Selecionar Todos';
 
-	// --- JSX (RETURN) ---
 	return (
 		<SafeAreaView style={styles.safeArea}>
 			<View style={styles.container}>
-				{/* Header e Subtítulo (Sem alterações) */}
 				<View style={styles.header}>
 					<Text style={styles.titulo}>Gerar Receita</Text>
 					{!isLoading && ingredientes.length > 0 && (
@@ -388,12 +369,9 @@ export default function GeradorReceitaScreen() {
 					Selecione os ingredientes que você tem:
 				</Text>
 
-				{/* Loading Inicial ou Lista (Sem alterações) */}
 				{isLoading ? (
 					<View style={styles.loadingContainer}>
-						<ActivityIndicator
-							size="large"
-							color="green"
+						<ActivityIndicator size="large" color="green" />
 						/>
 						<Text style={{ marginTop: 10, color: '#666' }}>
 							Carregando...
@@ -413,7 +391,7 @@ export default function GeradorReceitaScreen() {
 								</Text>
 								<Text style={styles.emptySubText}>
 									Vá para a aba "Ingredientes" para adicionar
-									ingredientes e poder gerar receitas.
+									ingredientes.
 								</Text>
 							</View>
 						}
@@ -421,7 +399,6 @@ export default function GeradorReceitaScreen() {
 					/>
 				)}
 
-				{/* Botão de Gerar Receita */}
 				{!isLoading && selecionados.length >= 2 && (
 					<View style={styles.botaoGerarContainer}>
 						<Button
@@ -443,7 +420,6 @@ export default function GeradorReceitaScreen() {
 					</View>
 				)}
 
-				{/* Mensagem quando não há ingredientes suficientes */}
 				{!isLoading && ingredientes.length > 0 && selecionados.length < 2 && (
 					<View style={styles.botaoGerarContainer}>
 						<Text style={{ color: '#666', textAlign: 'center' }}>
@@ -452,6 +428,65 @@ export default function GeradorReceitaScreen() {
 					</View>
 				)}
 			</View>
+
+			{/* Modal da Receita */}
+			<Modal
+				visible={modalVisible}
+				animationType="slide"
+				transparent={true}
+				onRequestClose={handleFecharModal}
+			>
+				<View style={styles.modalOverlay}>
+					<View style={styles.modalContent}>
+						<ScrollView showsVerticalScrollIndicator={true}>
+							<Text style={styles.modalTitle}>
+								{receitaGerada?.nome}
+							</Text>
+
+							<View style={styles.modalSection}>
+								<Text style={styles.modalSectionTitle}>
+									Ingredientes:
+								</Text>
+								{receitaGerada?.listaIngredientes.map((ing, index) => (
+									<Text key={index} style={styles.ingredientItem}>
+										• {ing.nome} ({ing.quantidade})
+									</Text>
+								))}
+							</View>
+
+							<View style={styles.modalSection}>
+								<Text style={styles.modalSectionTitle}>
+									Modo de Preparo:
+								</Text>
+								{receitaGerada?.passos.map((passo) => (
+									<Text key={passo.numero} style={styles.stepItem}>
+										{passo.numero}. {passo.descricao}
+									</Text>
+								))}
+							</View>
+						</ScrollView>
+
+						<View style={styles.modalButtons}>
+							<TouchableOpacity
+								style={[styles.modalButton, styles.saveButton]}
+								onPress={handleSalvarReceita}
+								disabled={isSaving}
+							>
+								<Text style={styles.modalButtonText}>
+									{isSaving ? 'Salvando...' : 'Salvar Receita'}
+								</Text>
+							</TouchableOpacity>
+							<TouchableOpacity
+								style={[styles.modalButton, styles.closeButton]}
+								onPress={handleFecharModal}
+								disabled={isSaving}
+							>
+								<Text style={styles.modalButtonText}>Fechar</Text>
+							</TouchableOpacity>
+						</View>
+					</View>
+				</View>
+			</Modal>
 		</SafeAreaView>
 	);
 }
