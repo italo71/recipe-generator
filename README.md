@@ -1,6 +1,11 @@
-# Welcome to your Expo app 👋
+# Repositorios
+https://github.com/italo71/recipe-generator (atual)
+https://github.com/saulluiz/api-recipe-generator (back-end)
+
+## Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+
 
 ## Get started
 
