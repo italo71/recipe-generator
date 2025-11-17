@@ -310,6 +310,13 @@ export default function GeradorReceitaScreen() {
 		try {
 			setIsSaving(true);
 			await saveRecipe(receitaSelecionada);
+			
+			// Fecha ambos os modais e limpa os estados
+			setDetalheModalVisible(false);
+			setListaModalVisible(false);
+			setReceitaSelecionada(null);
+			setReceitasGeradas([]);
+			
 			Alert.alert(
 				'Sucesso!',
 				'Receita salva com sucesso! Você pode vê-la na aba Receitas.'
@@ -483,6 +490,15 @@ export default function GeradorReceitaScreen() {
 						)}
 						contentContainerStyle={{ paddingBottom: 10 }}
 					/>
+
+					<View style={styles.modalButtons}>
+						<TouchableOpacity
+							style={[styles.modalButton, styles.closeButton]}
+							onPress={handleFecharListaModal}
+						>
+							<Text style={styles.modalButtonText}>Fechar</Text>
+						</TouchableOpacity>
+					</View>
 				</View>
 			</View>
 		</Modal>
